@@ -15,11 +15,23 @@
 
 package com.lidroid.xutils.util;
 
-import android.content.Context;
-import android.os.Build;
-import android.os.Environment;
-import android.os.StatFs;
-import android.text.TextUtils;
+import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpResponse;
@@ -27,13 +39,12 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.protocol.HTTP;
 
-import javax.net.ssl.*;
-import java.io.File;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
-import java.security.cert.X509Certificate;
-import java.util.Locale;
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.os.Build;
+import android.os.Environment;
+import android.os.StatFs;
+import android.text.TextUtils;
 
 /**
  * Created by wyouflf on 13-8-30.
@@ -260,4 +271,92 @@ public class OtherUtils {
             HttpsURLConnection.setDefaultHostnameVerifier(org.apache.http.conn.ssl.SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
         }
     }
+    
+    /**
+	 * 将JavaBean转为javaMap, 并可指定需要过滤的字段
+	 * @param javaBean
+	 * @param locked 正则表达式,比如过滤 id和那么那么 正则为 ^id|name$
+	 * @return 过滤后的map
+	 */
+	@SuppressWarnings("unchecked")
+	@SuppressLint("DefaultLocale")
+	public static Map<String, Object> obj2Map(Object javaBean, String locked) {
+
+		Map<String, Object> result = new HashMap<String, Object>();
+		
+		if(javaBean == null){
+			return result;
+		}
+		
+		if(locked == null || locked.trim().length() == 0){
+			locked = "^$";
+		}
+		
+		Pattern lock = Pattern.compile(locked);
+		
+		if(javaBean instanceof Map){
+			for (Map.Entry<String, Object> entry : ((Map<String, Object>)javaBean).entrySet()) {
+				if(!lock.matcher(entry.getKey()).find()){
+					result.put(entry.getKey(), entry.getValue());
+				}
+			}
+			return result;
+		}
+		
+		Class<?> superClazz = javaBean.getClass().getSuperclass();
+		while (superClazz != Object.class) {
+			Method[] methods = javaBean.getClass().getSuperclass()
+					.getDeclaredMethods();
+
+			for (Method method : methods) {
+				try {
+					if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
+						String field = method.getName();
+						if (method.getName().startsWith("get")){
+							field = field.substring(field.indexOf("get") + 3);
+						}else{
+							field = field.substring(field.indexOf("is") + 2);
+						}
+						field = field.toLowerCase().charAt(0)
+								+ field.substring(1);
+
+						Object value = method.invoke(javaBean, (Object[]) null);
+						if(null != value && !lock.matcher(field).find()){
+							result.put(field, value);
+						}
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					continue;
+				}
+			}
+
+			superClazz = superClazz.getClass().getSuperclass();
+		}
+
+		Method[] methods = javaBean.getClass().getDeclaredMethods();
+
+		for (Method method : methods) {
+			try {
+				if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
+					String field = method.getName();
+					if (method.getName().startsWith("get")){
+						field = field.substring(field.indexOf("get") + 3);
+					}else{
+						field = field.substring(field.indexOf("is") + 2);
+					}
+					field = field.toLowerCase().charAt(0) + field.substring(1);
+
+					Object value = method.invoke(javaBean, (Object[]) null);
+					if(null != value && !lock.matcher(field).find()){
+						result.put(field, value);
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
+		return result;
+	}
 }

@@ -15,23 +15,6 @@
 
 package com.lidroid.xutils.http;
 
-import android.text.TextUtils;
-import com.lidroid.xutils.http.client.entity.BodyParamsEntity;
-import com.lidroid.xutils.http.client.multipart.HttpMultipartMode;
-import com.lidroid.xutils.http.client.multipart.MultipartEntity;
-import com.lidroid.xutils.http.client.multipart.content.ContentBody;
-import com.lidroid.xutils.http.client.multipart.content.FileBody;
-import com.lidroid.xutils.http.client.multipart.content.InputStreamBody;
-import com.lidroid.xutils.http.client.multipart.content.StringBody;
-import com.lidroid.xutils.util.LogUtils;
-import com.lidroid.xutils.task.Priority;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.protocol.HTTP;
-
 import java.io.File;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -39,7 +22,28 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
+
+import android.text.TextUtils;
+
+import com.lidroid.xutils.http.client.entity.BodyParamsEntity;
+import com.lidroid.xutils.http.client.multipart.HttpMultipartMode;
+import com.lidroid.xutils.http.client.multipart.MultipartEntity;
+import com.lidroid.xutils.http.client.multipart.content.ContentBody;
+import com.lidroid.xutils.http.client.multipart.content.FileBody;
+import com.lidroid.xutils.http.client.multipart.content.InputStreamBody;
+import com.lidroid.xutils.http.client.multipart.content.StringBody;
+import com.lidroid.xutils.task.Priority;
+import com.lidroid.xutils.util.LogUtils;
+import com.lidroid.xutils.util.OtherUtils;
 
 
 public class RequestParams {
@@ -158,7 +162,78 @@ public class RequestParams {
             this.headers.add(new HeaderItem(header, true));
         }
     }
+    
+	/**
+	 * 将javabean中的所有的属性转为需要提交的参数
+	 * @param obj
+	 */
+	public void addQueryStringParamters(Object obj){
+		Map<String, Object> kvs = OtherUtils.obj2Map(obj, null);
+		addQueryStringParamters(kvs);
+	}
 
+	/**
+	 * 将javabean中的属性转为需要提交的参数,并用正则过滤部分不需要提交的字段
+	 * @param obj javabean
+	 * @param regx 过滤正则表达式 比如过滤id,name 正则为 "^id|name$"
+	 */
+	public void addQueryStringParamters(Object obj, String regx){
+		Map<String, Object> kvs = OtherUtils.obj2Map(obj, regx);
+		addQueryStringParamters(kvs);
+	}
+	
+	/**
+	 * 将javabean中的所有的属性转为需要提交的参数(可指定key前缀)
+	 * @param obj
+	 * @param prefix 在key前面加前缀, 比如 prex.name
+	 */
+	public void addQueryStringParamsWithPrefix(Object obj,String prefix){
+		Map<String, Object> kvs = OtherUtils.obj2Map(obj, null);
+		addQueryStringParamters(kvs,prefix);
+	}
+	
+	/**
+	 * 将javabean中的属性转为需要提交的参数,并用正则过滤部分不需要提交的字段(可指定key前缀)
+	 * @param obj javabean
+	 * @param regx 过滤正则表达式 比如过滤id,name 正则为 "^id|name$"
+	 * @param prefix 在key前面加前缀, 比如 prex.name
+	 */
+	public void addQueryStringParamsWithPrefix(Object obj, String regx, String prefix){
+		Map<String, Object> kvs = OtherUtils.obj2Map(obj, regx);
+		addQueryStringParamters(kvs, prefix);
+	}
+
+	/**
+	 * 将map转为需要提交的参数
+	 * @param kvs
+	 */
+	public void addQueryStringParamters(Map<String, Object> kvs){
+		addQueryStringParamters(kvs,null);
+	}
+	
+	/**
+	 * 将map转为需要提交的参数,并置顶key的前缀
+	 * @param kvs
+	 * @param prefix key前缀
+	 */
+	public void addQueryStringParamters(Map<String, Object> kvs, String prefix){
+		if(kvs != null){
+			if (queryStringParams == null) {
+				queryStringParams = new ArrayList<NameValuePair>();
+			}
+
+			if(prefix == null || prefix.trim().length() == 0){
+				prefix = "";
+			}else{
+				prefix = prefix + ".";
+			}
+			
+			for (Map.Entry<String, Object> entry : kvs.entrySet()) {
+				queryStringParams.add(new BasicNameValuePair(prefix + entry.getKey(), entry.getValue().toString()));
+			}
+		}
+	}
+    
     public void addQueryStringParameter(String name, String value) {
         if (queryStringParams == null) {
             queryStringParams = new ArrayList<NameValuePair>();
